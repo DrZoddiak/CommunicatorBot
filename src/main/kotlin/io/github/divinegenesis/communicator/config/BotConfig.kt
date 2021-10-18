@@ -36,7 +36,8 @@ class MainConfiguration {
 @ConfigSerializable
 class AuthorizationConfig {
 
-    @Setting("EmoteID")
+    @Setting("VerificationEmoteID")
+    @Comment("The ID of the emote users will click to be verified")
     val emoteID = ""
 
     @Setting("ChannelID")
@@ -63,6 +64,22 @@ class AuthorizationConfig {
     """.trimIndent(),
         "**3. What is the password?**"
     )
+
+    val password = ""
+
+    @Setting("SpecialRoleID")
+    @Comment("The ID of the special role a user receives from getting the password correct")
+    val specialRoleID = ""
+
+    @Setting("RegularRoleID")
+    @Comment("The ID of the regular role a user receives when approved")
+    val regularRoleID = ""
+
+    @Setting("ApprovedEmoteID")
+    val approveEmote = ""
+
+    @Setting("DeniedEmoteId")
+    val denyEmote = ""
 
 }
 

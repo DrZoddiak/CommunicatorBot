@@ -7,9 +7,9 @@ import io.github.divinegenesis.communicator.logging.logger
 import io.github.divinegenesis.communicator.utils.*
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.entities.ChannelType
-import net.dv8tion.jda.api.entities.TextChannel
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent
+import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent
 import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEvent
 
 
@@ -19,6 +19,9 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
     private val mainConfiguration = config.mainConfiguration
     private val authorizationConfig = config.authorizationConfig
     private val logger = logger<AuthorizationHandler>()
+
+    private val messageCache = Caffeine.newBuilder()
+        .build<String, CacheHolder>()
 
     private fun onGuildEmoteReact(event: GuildMessageReactionAddEvent) {
         //This implementation doesn't support discord Emojis
@@ -45,25 +48,35 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
         )
     }
 
-    private val messageCache = Caffeine.newBuilder()
-        .build<String, CacheHolder>()
-
     private fun onPrivateMessageReceived(event: MessageReceivedEvent) {
         if (event.channelType != ChannelType.PRIVATE) return
 
-        val guild = event.jda.getGuildById(mainConfiguration.guildID)!! //TODO: Handle this
-        val authChannel = guild.getTextChannelById(authorizationConfig.channelID)!!
+        val guild = event.jda.getGuildById(mainConfiguration.guildID).let {
+            if (it == null) {
+                logger.error("Guild ID is invalid!")
+                return
+            }
+            it
+        }
+        val authChannel = guild.getTextChannelById(authorizationConfig.channelID).let {
+            if (it == null) {
+                logger.error("Authentication channel ID is invalid!")
+                return
+            }
+            it
+        }
 
         val message = event.message.contentRaw
         val user = event.author
         val userById = user.id
+        val initialMessageValue = 0
 
         val cache =
             messageCache.getIfPresent(userById).let {
                 if (it != null) {
                     it
                 } else {
-                    messageCache.put(userById, CacheHolder(mutableListOf(message), 0))
+                    messageCache.put(userById, CacheHolder(mutableListOf(message), initialMessageValue))
                     messageCache.getIfPresent(userById)!!
                 }
             }
@@ -74,7 +87,10 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
 
 
         when (messageInt) {
-            0,1,2 -> {
+            0, 1, 2 -> {
+                if (messageInt != initialMessageValue) {
+                    messageList.add(message)
+                }
                 messageCache.put(userById, CacheHolder(messageList, ++messageInt))
                 user.sendPrivateMessage(
                     authChannel, questions[messageInt]
@@ -82,17 +98,53 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
                 return
             }
             3 -> {
-                messageList.add(message)
-                val verificationChannel =
-                    guild.getTextChannelById(authorizationConfig.verificationID).let {
-                        if (it == null) {
-                            logger.error("Verification channel ID is invalid!")
-                            return
-                        }
-                        it
+                if (message.lowercase() == authorizationConfig.password.lowercase()) {
+                    guild.getRoleById(authorizationConfig.specialRoleID).let {
+                        guild.getMember(user)?.roles?.add(it)
                     }
-                verificationChannel.sendMessage(messageList.toString()).queue()
+                }
+                messageList.add(message)
+                guild.getTextChannelById(authorizationConfig.verificationID).let {
+                    it?.sendMessage(
+                        """
+                        ${user.asTag}
+                        
+                        $messageList
+                    """.trimIndent()
+                    )?.queue()
+                }
                 messageCache.invalidate(userById)
+            }
+        }
+    }
+
+    private fun onVerificationChannelMessageReceived(event: GuildMessageReceivedEvent) {
+        if (!event.author.isBot) return
+
+        val message = event.message
+        val approved = event.guild.getEmoteById(authorizationConfig.approveEmote)!!
+        val denied = event.guild.getEmoteById(authorizationConfig.denyEmote)!!
+
+        message.addReaction(approved).and(message.addReaction(denied)).queue()
+    }
+
+    private fun onGuildVerifyEmoteReact(event: GuildMessageReactionAddEvent) {
+        if (event.channel.id != authorizationConfig.verificationID) return
+        val guild = event.guild
+        val verdict = event.reactionEmote.emote.id
+        val message = event.retrieveMessage().submit().get()
+        val mentionedUsers = message.mentionedUsers
+
+        val specialRole = guild.getRoleById(authorizationConfig.specialRoleID)!!
+        val regularRole = guild.getRoleById(authorizationConfig.regularRoleID)!!
+
+        if (verdict == authorizationConfig.approveEmote) {
+            for (user in mentionedUsers) {
+                val member = guild.getMember(user)
+                member?.roles?.add(regularRole)
+                if (message.contentRaw.contains(authorizationConfig.password)) {
+                    member?.roles?.add(specialRole)
+                }
             }
         }
     }
@@ -118,5 +170,7 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
         jda.listenFlow<GuildMessageReactionAddEvent>().handleEachIn(scope, this::onGuildEmoteReact)
         jda.listenFlow<MessageReceivedEvent>().handleEachIn(scope, this::onPrivateMessageReceived)
         jda.listenFlow<GuildMemberRemoveEvent>().handleEachIn(scope, this::onGuildMemberRemove)
+        jda.listenFlow<GuildMessageReceivedEvent>().handleEachIn(scope, this::onVerificationChannelMessageReceived)
+        jda.listenFlow<GuildMessageReactionAddEvent>().handleEachIn(scope, this::onGuildVerifyEmoteReact)
     }
 }
