@@ -10,8 +10,7 @@ fun main() {
     } catch (e: Exception) {
         logger.info("Something has gone wrong! See error below.")
         if (e.message != null) {
-            logger.info(e.message)
+            logger.error(e.message)
         }
-        e.printStackTrace()
     }
 }

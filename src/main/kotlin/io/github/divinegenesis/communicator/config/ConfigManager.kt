@@ -7,6 +7,7 @@ import org.spongepowered.configurate.ConfigurateException
 import org.spongepowered.configurate.hocon.HoconConfigurationLoader
 import org.spongepowered.configurate.kotlin.extensions.get
 import java.io.File
+import java.nio.file.FileSystems
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
@@ -14,13 +15,13 @@ import kotlin.io.path.exists
 class ConfigManager @Inject constructor() {
     private val logger = logger<ConfigManager>()
 
-    private val configName = "Communicator.conf"
+    private val configName = "config/Communicator.conf"
 
     private lateinit var root: CommentedConfigurationNode
     lateinit var config: BotConfig
 
     // TODO: 10/12/2021 Change directory 
-    private var path: Path = Path.of("""D:\Programming Projects\My Projects\untitled1\src\main\resources""")
+    private var path: Path = FileSystems.getDefault().getPath("config")
         get() {
             return if (!field.exists()) {
                 field.createDirectories()
