@@ -41,10 +41,10 @@ dependencies {
     implementation("com.github.ben-manes.caffeine:caffeine:3.0.4")
     //Database
     implementation("com.zaxxer:HikariCP:5.0.0")
-    implementation("org.jetbrains.exposed", "exposed-core", "0.31.1")
-    implementation("org.jetbrains.exposed", "exposed-dao", "0.31.1")
-    implementation("org.jetbrains.exposed", "exposed-jdbc", "0.31.1")
-    implementation("org.jetbrains.exposed", "exposed-java-time", "0.31.1")
+    implementation("org.jetbrains.exposed", "exposed-core", "0.35.2")
+    implementation("org.jetbrains.exposed", "exposed-dao", "0.35.2")
+    implementation("org.jetbrains.exposed", "exposed-jdbc", "0.35.2")
+    implementation("org.jetbrains.exposed", "exposed-java-time", "0.35.2")
     implementation("mysql:mysql-connector-java:8.0.26")
     implementation("com.h2database:h2:1.4.200")
 

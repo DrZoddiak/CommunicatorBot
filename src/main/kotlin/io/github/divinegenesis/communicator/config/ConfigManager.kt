@@ -15,12 +15,11 @@ import kotlin.io.path.exists
 class ConfigManager @Inject constructor() {
     private val logger = logger<ConfigManager>()
 
-    private val configName = "config/Communicator.conf"
+    private val configName = "Communicator.conf"
 
     private lateinit var root: CommentedConfigurationNode
     lateinit var config: BotConfig
 
-    // TODO: 10/12/2021 Change directory 
     private var path: Path = FileSystems.getDefault().getPath("config")
         get() {
             return if (!field.exists()) {
@@ -45,8 +44,8 @@ class ConfigManager @Inject constructor() {
             logger.info("Loading communicator.config..")
             loader.load()
         } catch (e: ConfigurateException) {
-            logger.info("Unable to load your configuration! Sorry!")
-            e.printStackTrace()
+            logger.error("Unable to load your configuration! Sorry!")
+            e.message ?: e.printStackTrace()
             return
         }
         config = root.get(BotConfig::class).let {
@@ -58,7 +57,7 @@ class ConfigManager @Inject constructor() {
         try {
             loader.save(root)
         } catch (e: ConfigurateException) {
-            logger.info("Unable to save your configuration! Sorry!")
+            logger.error("Unable to save your configuration! Sorry!")
             e.printStackTrace()
             return
         }

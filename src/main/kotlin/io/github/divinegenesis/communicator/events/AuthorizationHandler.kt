@@ -24,22 +24,23 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
         .build<String, CacheHolder>()
 
     private fun onGuildEmoteReact(event: GuildMessageReactionAddEvent) {
-        //This implementation doesn't support discord Emojis
-        //Only supports custom emotes.
+        if (event.user.isBot) return
+        logger.debug("Emote reacted")
         val emote = event.reactionEmote.let {
             if (it.isEmote) return@let it.id
-            else return
+            return
         }
         val channel = event.channel
 
+        logger.info("comparing emote ID")
         if (emote != authorizationConfig.emoteID) return
+        logger.info("Channel: ${channel.id} - Config: ${authorizationConfig.channelID}")
         if (channel.id != authorizationConfig.channelID) return
 
         val user = event.user
 
-        /**
-         * @see io.github.divinegenesis.communicator.utils.sendPrivateMessage
-         */
+        logger.info(user.id)
+
         user.sendPrivateMessage(
             channel, """
             *Greetings, my dear Anonimian.*
@@ -48,8 +49,47 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
         )
     }
 
+    private fun onGuildVerifyEmoteReact(event: GuildMessageReactionAddEvent) {
+        if (event.user.isBot) return
+        if (event.channel.id != authorizationConfig.verificationID) return
+
+        val message = event.retrieveMessage().submit().get()
+        val mentionedMembers = message.mentionedMembers
+
+        val guild = event.guild
+        //There should only be one Member in the list ever
+        val member = if (mentionedMembers.isNotEmpty()) mentionedMembers[0] else return
+        val regularRole = guild.getRoleById(authorizationConfig.regularRoleID).let {
+            if (it == null) {
+                logger.error("Regular Role ID is invalid!")
+                return
+            }
+            it
+        }
+        val specialRole = guild.getRoleById(authorizationConfig.specialRoleID).let {
+            if (it == null) {
+                logger.error("Special Role ID is invalid!")
+                return
+            }
+            it
+        }
+
+        val verdict = event.reactionEmote.emote.id
+
+        if (verdict == authorizationConfig.approveEmote) {
+            guild.addRoleToMember(member, regularRole).queue()
+            if (message.contentRaw.contains(authorizationConfig.password, true)) {
+                guild.addRoleToMember(member, specialRole).queue()
+            }
+
+        } else {
+            //todo: Awaiting what to do when user is denied
+        }
+    }
+
     private fun onPrivateMessageReceived(event: MessageReceivedEvent) {
         if (event.channelType != ChannelType.PRIVATE) return
+        if (event.author.isBot) return
 
         val guild = event.jda.getGuildById(mainConfiguration.guildID).let {
             if (it == null) {
@@ -69,14 +109,13 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
         val message = event.message.contentRaw
         val user = event.author
         val userById = user.id
-        val initialMessageValue = 0
 
         val cache =
             messageCache.getIfPresent(userById).let {
                 if (it != null) {
                     it
                 } else {
-                    messageCache.put(userById, CacheHolder(mutableListOf(message), initialMessageValue))
+                    messageCache.put(userById, CacheHolder(mutableListOf("$message\n")))
                     messageCache.getIfPresent(userById)!!
                 }
             }
@@ -88,26 +127,21 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
 
         when (messageInt) {
             0, 1, 2 -> {
-                if (messageInt != initialMessageValue) {
-                    messageList.add(message)
+                if (messageInt != 0) {
+                    messageList.add("$message\n")
                 }
-                messageCache.put(userById, CacheHolder(messageList, ++messageInt))
                 user.sendPrivateMessage(
                     authChannel, questions[messageInt]
                 )
+                messageCache.put(userById, CacheHolder(messageList, ++messageInt))
                 return
             }
             3 -> {
-                if (message.lowercase() == authorizationConfig.password.lowercase()) {
-                    guild.getRoleById(authorizationConfig.specialRoleID).let {
-                        guild.getMember(user)?.roles?.add(it)
-                    }
-                }
                 messageList.add(message)
                 guild.getTextChannelById(authorizationConfig.verificationID).let {
                     it?.sendMessage(
                         """
-                        ${user.asTag}
+                        User: ${user.asMention}
                         
                         $messageList
                     """.trimIndent()
@@ -122,31 +156,11 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
         if (!event.author.isBot) return
 
         val message = event.message
+
         val approved = event.guild.getEmoteById(authorizationConfig.approveEmote)!!
         val denied = event.guild.getEmoteById(authorizationConfig.denyEmote)!!
 
         message.addReaction(approved).and(message.addReaction(denied)).queue()
-    }
-
-    private fun onGuildVerifyEmoteReact(event: GuildMessageReactionAddEvent) {
-        if (event.channel.id != authorizationConfig.verificationID) return
-        val guild = event.guild
-        val verdict = event.reactionEmote.emote.id
-        val message = event.retrieveMessage().submit().get()
-        val mentionedUsers = message.mentionedUsers
-
-        val specialRole = guild.getRoleById(authorizationConfig.specialRoleID)!!
-        val regularRole = guild.getRoleById(authorizationConfig.regularRoleID)!!
-
-        if (verdict == authorizationConfig.approveEmote) {
-            for (user in mentionedUsers) {
-                val member = guild.getMember(user)
-                member?.roles?.add(regularRole)
-                if (message.contentRaw.contains(authorizationConfig.password)) {
-                    member?.roles?.add(specialRole)
-                }
-            }
-        }
     }
 
 

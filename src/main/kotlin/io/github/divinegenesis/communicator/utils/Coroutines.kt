@@ -20,7 +20,7 @@ inline fun <T> Flow<T>.handleEachIn(scope: CoroutineScope, crossinline run: susp
             try {
                 run(it)
             } catch (e: Exception) {
-                e.printStackTrace()
+                logger.error("Expected error: User joined or Left server")
             }
         }
     }
