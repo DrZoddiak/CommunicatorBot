@@ -1,7 +1,7 @@
 package io.github.divinegenesis.communicator.events.tables
 
 import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.`java-time`.datetime
+import org.jetbrains.exposed.sql.javatime.datetime
 
 abstract class EventTable : Table() {
     private val id = integer("id").autoIncrement()

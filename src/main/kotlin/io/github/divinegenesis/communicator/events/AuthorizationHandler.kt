@@ -5,12 +5,19 @@ import com.google.inject.Inject
 import io.github.divinegenesis.communicator.config.ConfigManager
 import io.github.divinegenesis.communicator.logging.logger
 import io.github.divinegenesis.communicator.utils.*
+import net.dv8tion.jda.api.EmbedBuilder
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.entities.ChannelType
+import net.dv8tion.jda.api.entities.Member
+import net.dv8tion.jda.api.entities.MessageEmbed
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent
 import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEvent
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.temporal.TemporalAccessor
+import java.time.temporal.TemporalUnit
 
 
 class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : EventListener {
@@ -25,17 +32,17 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
 
     private fun onGuildEmoteReact(event: GuildMessageReactionAddEvent) {
         if (event.user.isBot) return
-        logger.debug("Emote reacted")
+
+        val channel = event.channel
+
+        if (channel.id != authorizationConfig.channelID) return
+
         val emote = event.reactionEmote.let {
             if (it.isEmote) return@let it.id
             return
         }
-        val channel = event.channel
 
-        logger.info("comparing emote ID")
         if (emote != authorizationConfig.emoteID) return
-        logger.info("Channel: ${channel.id} - Config: ${authorizationConfig.channelID}")
-        if (channel.id != authorizationConfig.channelID) return
 
         val user = event.user
 
@@ -54,11 +61,26 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
         if (event.channel.id != authorizationConfig.verificationID) return
 
         val message = event.retrieveMessage().submit().get()
-        val mentionedMembers = message.mentionedMembers
-
         val guild = event.guild
+
+
+        var userPasswordAttempt = ""
+        var member: Member? = null
+
+        message.embeds.forEach {
+            if (!it.footer?.text.isNullOrEmpty()) {
+                member = guild.getMemberById(it.footer!!.text!!)
+            } else {
+                return
+            }
+            it.fields.forEach { field ->
+                if (field.name?.startsWith("Answer 3") == true) {
+                    userPasswordAttempt = field.value.toString()
+                }
+            }
+        }
+
         //There should only be one Member in the list ever
-        val member = if (mentionedMembers.isNotEmpty()) mentionedMembers[0] else return
         val regularRole = guild.getRoleById(authorizationConfig.regularRoleID).let {
             if (it == null) {
                 logger.error("Regular Role ID is invalid!")
@@ -77,11 +99,10 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
         val verdict = event.reactionEmote.emote.id
 
         if (verdict == authorizationConfig.approveEmote) {
-            guild.addRoleToMember(member, regularRole).queue()
-            if (message.contentRaw.contains(authorizationConfig.password, true)) {
-                guild.addRoleToMember(member, specialRole).queue()
+            member?.let { guild.addRoleToMember(it, regularRole).queue() }
+            if (userPasswordAttempt.equals(authorizationConfig.password, true)) {
+                member?.let { guild.addRoleToMember(it, specialRole).queue() }
             }
-
         } else {
             //todo: Awaiting what to do when user is denied
         }
@@ -137,15 +158,19 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
                 return
             }
             3 -> {
+                val embed = EmbedBuilder()
+                    .setTitle(user.asTag)
+                    .setTimestamp(Instant.now())
+                    .setFooter(userById)
+
                 messageList.add(message)
+
+                for ((i, answer) in messageList.withIndex()) {
+                    embed.addField(MessageEmbed.Field("Answer $i", answer, false))
+                }
+
                 guild.getTextChannelById(authorizationConfig.verificationID).let {
-                    it?.sendMessage(
-                        """
-                        User: ${user.asMention}
-                        
-                        $messageList
-                    """.trimIndent()
-                    )?.queue()
+                    it?.sendMessageEmbeds(embed.build())?.queue()
                 }
                 messageCache.invalidate(userById)
             }
@@ -162,7 +187,6 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
 
         message.addReaction(approved).and(message.addReaction(denied)).queue()
     }
-
 
     private fun onGuildMemberRemove(event: GuildMemberRemoveEvent) {
         val user = event.user

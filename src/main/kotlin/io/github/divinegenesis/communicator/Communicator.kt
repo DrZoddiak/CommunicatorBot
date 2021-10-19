@@ -17,6 +17,7 @@ class Communicator @Inject constructor() {
     private val configManager = ConfigManager().also {
         it.loadConfig()
     }
+
     fun load() {
         val injector = Guice.createInjector(CommunicatorModule(configManager), ListenersModule())
         val jda = injector.getInstance<JDA>()

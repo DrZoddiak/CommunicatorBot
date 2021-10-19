@@ -31,10 +31,9 @@ class JoinLeaveListener : EventListener {
         }
     }
 
-
     override fun register(jda: JDA) {
-        jda.listenFlow<GuildMemberJoinEvent>().handleEachIn(scope,this::onGuildJoin)
+        jda.listenFlow<GuildMemberJoinEvent>().handleEachIn(scope, this::onGuildJoin)
 
-        jda.listenFlow<GuildMemberRemoveEvent>().handleEachIn(scope,this::onGuildLeave)
+        jda.listenFlow<GuildMemberRemoveEvent>().handleEachIn(scope, this::onGuildLeave)
     }
 }

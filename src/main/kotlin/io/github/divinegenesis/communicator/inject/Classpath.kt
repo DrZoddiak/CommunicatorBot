@@ -9,8 +9,9 @@ object Classpath {
             .disableModuleScanning()
             .enableClassInfo()
     }
+
     @Suppress("UNCHECKED_CAST")
-    fun <T> subtypesOf(type: Class<T>) : List<Class<out T>> {
+    fun <T> subtypesOf(type: Class<T>): List<Class<out T>> {
         return classGraph.scan().use {
             val types = if (type.isInterface) it.getClassesImplementing(type.name) else it.getSubclasses(type.name)
             types.loadClasses()
