@@ -17,6 +17,7 @@ data class BotConfig(
     @Comment("This should be the bots UserID, for example Dyno's UserID is \"155149108183695360\"")
     val authorizedBotList: List<String> = listOf(""),
 
+    val inviteMap: Map<String, String> = mapOf(Pair("", ""))
     )
 
 @ConfigSerializable
@@ -25,14 +26,12 @@ data class MainConfiguration(
     @Setting("GuildID")
     val guildID: String = "",
 
-    @Setting("OwnerID")
-    val ownerID: String = "",
+    val botToken: String = "",
 
-    val debugChannel: String = "",
+    @Setting("Punishment-Role-ID")
+    val punishmentRoleID: String = "",
 
-    val botToken: String = ""
-
-)
+    )
 
 @ConfigSerializable
 data class AuthorizationConfig(

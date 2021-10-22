@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.5.31"
+    kotlin("jvm") version "1.6.0-RC"
     application
 }
 
@@ -17,9 +17,9 @@ repositories {
 
 dependencies {
     //Kotlin
-    implementation(platform("org.jetbrains.kotlin:kotlin-bom"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2-native-mt")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.5.2-native-mt")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:1.5.2-native-mt")
     //JDA
     implementation("net.dv8tion:JDA:4.3.0_331")
@@ -33,7 +33,7 @@ dependencies {
     //Logging
     implementation("ch.qos.logback:logback-classic:1.2.6")
     //Classpath scanning
-    implementation("io.github.classgraph:classgraph:4.8.126")
+    implementation("io.github.classgraph:classgraph:4.8.128")
     //Injection
     implementation("com.google.inject:guice:5.0.1")
     implementation("dev.misfitlabs.kotlinguice4:kotlin-guice:1.5.0")
@@ -54,7 +54,7 @@ tasks.test {
     useJUnitPlatform()
 }
 
-tasks.withType<KotlinCompile>() {
+tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "11"
 }
 
