@@ -1,8 +1,9 @@
-package io.github.divinegenesis.communicator.events
+package io.github.divinegenesis.communicator.events.handlers
 
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.google.inject.Inject
 import io.github.divinegenesis.communicator.config.ConfigManager
+import io.github.divinegenesis.communicator.events.EventListener
 import io.github.divinegenesis.communicator.logging.logger
 import io.github.divinegenesis.communicator.utils.*
 import net.dv8tion.jda.api.EmbedBuilder
@@ -15,9 +16,6 @@ import net.dv8tion.jda.api.events.message.MessageReceivedEvent
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent
 import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEvent
 import java.time.Instant
-import java.time.LocalDateTime
-import java.time.temporal.TemporalAccessor
-import java.time.temporal.TemporalUnit
 
 
 class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : EventListener {

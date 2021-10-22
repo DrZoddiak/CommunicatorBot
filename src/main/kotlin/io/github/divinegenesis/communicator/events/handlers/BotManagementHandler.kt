@@ -1,7 +1,8 @@
-package io.github.divinegenesis.communicator.events
+package io.github.divinegenesis.communicator.events.handlers
 
 import com.google.inject.Inject
 import io.github.divinegenesis.communicator.config.ConfigManager
+import io.github.divinegenesis.communicator.events.EventListener
 import io.github.divinegenesis.communicator.events.tables.UserRoles
 import io.github.divinegenesis.communicator.utils.*
 import net.dv8tion.jda.api.JDA

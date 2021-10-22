@@ -1,6 +1,7 @@
-package io.github.divinegenesis.communicator.events.tables
+package io.github.divinegenesis.communicator.events.handlers
 
 import io.github.divinegenesis.communicator.events.EventListener
+import io.github.divinegenesis.communicator.events.tables.JoinLeaves
 import io.github.divinegenesis.communicator.utils.handleEachIn
 import io.github.divinegenesis.communicator.utils.listenFlow
 import io.github.divinegenesis.communicator.utils.scope
@@ -11,7 +12,7 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
 import java.time.LocalDateTime
 
-class JoinLeaveListener : EventListener {
+class JoinLeaveHandler : EventListener {
 
     private suspend fun onGuildJoin(event: GuildMemberJoinEvent) = newSuspendedTransaction {
         JoinLeaves.insert {
@@ -33,7 +34,6 @@ class JoinLeaveListener : EventListener {
 
     override fun register(jda: JDA) {
         jda.listenFlow<GuildMemberJoinEvent>().handleEachIn(scope, this::onGuildJoin)
-
         jda.listenFlow<GuildMemberRemoveEvent>().handleEachIn(scope, this::onGuildLeave)
     }
 }
