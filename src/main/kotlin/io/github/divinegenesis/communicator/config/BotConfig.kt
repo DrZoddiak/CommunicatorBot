@@ -18,7 +18,7 @@ data class BotConfig(
     val authorizedBotList: List<String> = listOf(""),
 
     val inviteMap: Map<String, String> = mapOf(Pair("", ""))
-    )
+)
 
 @ConfigSerializable
 data class MainConfiguration(
@@ -31,7 +31,8 @@ data class MainConfiguration(
     @Setting("Punishment-Role-ID")
     val punishmentRoleID: String = "",
 
-    )
+    val prefix: String = "!"
+)
 
 @ConfigSerializable
 data class AuthorizationConfig(
@@ -40,19 +41,18 @@ data class AuthorizationConfig(
     @Comment("The ID of the emote users will click to be verified")
     val emoteID: String = "",
 
-    @Setting("Channel-Verification-ID")
+    @Setting("Channel-Authorization-ID")
     @Comment("The channel ID of where to listen for the emote")
-    val channelID: String = "",
+    val authorizationChannelID: String = "",
 
-    @Setting("Channel-Verify-ID")
+    @Setting("Channel-Authorize-ID")
     @Comment("The channel id where verification is sent to")
-    val verificationID: String = "",
+    val authorizationInspectionChannelID: String = "",
 
     @Setting("Message-ID")
     @Comment("The message ID, used for removing a users emote if they leave")
     val messageID: String = "",
 
-    @Comment("Currently limited to 3 entries. Additional entries will be ignored.")
     val questions: List<String> = listOf(
         """
         *First of all: Thank you for being so kind to take the time for us, your dedication will not go unnoticed!*
@@ -82,7 +82,9 @@ data class AuthorizationConfig(
     @Setting("Emote-Deny-Id")
     val denyEmote: String = "",
 
-    )
+    @Setting("Role-Rejoin-ID")
+    val rejoinRoleID: String = ""
+)
 
 @ConfigSerializable
 data class DatabaseConfig(

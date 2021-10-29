@@ -6,6 +6,7 @@ import org.spongepowered.configurate.CommentedConfigurationNode
 import org.spongepowered.configurate.ConfigurateException
 import org.spongepowered.configurate.hocon.HoconConfigurationLoader
 import org.spongepowered.configurate.kotlin.extensions.get
+import org.spongepowered.configurate.kotlin.objectMapperFactory
 import java.io.File
 import java.nio.file.FileSystems
 import java.nio.file.Path
@@ -37,6 +38,11 @@ class ConfigManager @Inject constructor() {
 
     private val loader = HoconConfigurationLoader.builder()
         .path(configFile.toPath())
+        .defaultOptions { options ->
+            options.serializers { builder ->
+                builder.registerAnnotatedObjects(objectMapperFactory())
+            }
+        }
         .build()
 
     fun loadConfig() {

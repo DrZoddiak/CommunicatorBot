@@ -25,6 +25,8 @@ dependencies {
     implementation("net.dv8tion:JDA:4.3.0_331")
     implementation("com.jagrosh:jda-utilities:3.0.5")
     implementation("com.github.MinnDevelopment:jda-reactor:1.3.0")
+    //Commands
+    implementation("me.mattstudios.utils:matt-framework-jda:1.1.14-BETA")
     //Configuration
     implementation("org.spongepowered:configurate-extra-kotlin:4.1.2")
     implementation("org.spongepowered:configurate-hocon:4.1.2")
@@ -41,10 +43,10 @@ dependencies {
     implementation("com.github.ben-manes.caffeine:caffeine:3.0.4")
     //Database
     implementation("com.zaxxer:HikariCP:5.0.0")
-    implementation("org.jetbrains.exposed", "exposed-core", "0.35.2")
-    implementation("org.jetbrains.exposed", "exposed-dao", "0.35.2")
-    implementation("org.jetbrains.exposed", "exposed-jdbc", "0.35.2")
-    implementation("org.jetbrains.exposed", "exposed-java-time", "0.35.2")
+    implementation("org.jetbrains.exposed", "exposed-core", "0.35.3")
+    implementation("org.jetbrains.exposed", "exposed-dao", "0.35.3")
+    implementation("org.jetbrains.exposed", "exposed-jdbc", "0.35.3")
+    implementation("org.jetbrains.exposed", "exposed-java-time", "0.35.3")
     implementation("mysql:mysql-connector-java:8.0.26")
     implementation("com.h2database:h2:1.4.200")
 

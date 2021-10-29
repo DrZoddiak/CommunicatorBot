@@ -33,7 +33,7 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
 
         val channel = event.channel
 
-        if (channel.id != authorizationConfig.channelID) return
+        if (channel.id != authorizationConfig.authorizationChannelID) return
 
         val emote = event.reactionEmote.let {
             if (it.isEmote) return@let it.id
@@ -56,7 +56,7 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
 
     private fun onGuildVerifyEmoteReact(event: GuildMessageReactionAddEvent) {
         if (event.user.isBot) return
-        if (event.channel.id != authorizationConfig.verificationID) return
+        if (event.channel.id != authorizationConfig.authorizationInspectionChannelID) return
 
         val message = event.retrieveMessage().submit().get()
         val guild = event.guild
@@ -110,20 +110,8 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
         if (event.channelType != ChannelType.PRIVATE) return
         if (event.author.isBot) return
 
-        val guild = event.jda.getGuildById(mainConfiguration.guildID).let {
-            if (it == null) {
-                logger.error("Guild ID is invalid!")
-                return
-            }
-            it
-        }
-        val authChannel = guild.getTextChannelById(authorizationConfig.channelID).let {
-            if (it == null) {
-                logger.error("Authentication channel ID is invalid!")
-                return
-            }
-            it
-        }
+        val guild = event.jda.getGuildById(mainConfiguration.guildID)
+        val authChannel = guild?.getTextChannelById(authorizationConfig.authorizationChannelID)
 
         val message = event.message.contentRaw
         val user = event.author
@@ -139,44 +127,44 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
                 }
             }
 
-        val messageList = cache.messageList
         var messageInt = cache.messageInt
+
+        val messageList = cache.messageList
         val questions = authorizationConfig.questions
+        val maxQuestions = questions.size
+        val question = questions[messageInt]
 
-
-        when (messageInt) {
-            0, 1, 2 -> {
-                if (messageInt != 0) {
-                    messageList.add("$message\n")
-                }
-                user.sendPrivateMessage(
-                    authChannel, questions[messageInt]
-                )
-                messageCache.put(userById, CacheHolder(messageList, ++messageInt))
-                return
+        if (messageInt != maxQuestions) {
+            if (messageInt != 0) {
+                messageList.add("$message\n")
             }
-            3 -> {
-                val embed = EmbedBuilder()
-                    .setTitle(user.asTag)
-                    .setTimestamp(Instant.now())
-                    .setFooter(userById)
+            user.sendPrivateMessage(
+                authChannel, question
+            )
+            messageCache.put(userById, CacheHolder(messageList, ++messageInt))
+            return
+        } else {
+            val embed = EmbedBuilder()
+                .setTitle(user.asTag)
+                .setTimestamp(Instant.now())
+                .setFooter(userById)
 
-                messageList.add(message)
+            messageList.add(message)
 
-                for ((i, answer) in messageList.withIndex()) {
-                    embed.addField(MessageEmbed.Field("Answer $i", answer, false))
-                }
-
-                guild.getTextChannelById(authorizationConfig.verificationID).let {
-                    it?.sendMessageEmbeds(embed.build())?.queue()
-                }
-                messageCache.invalidate(userById)
+            for ((i, answer) in messageList.withIndex()) {
+                embed.addField(MessageEmbed.Field("Answer $i", answer, false))
             }
+
+            guild?.getTextChannelById(authorizationConfig.authorizationInspectionChannelID).let {
+                it?.sendMessageEmbeds(embed.build())?.queue()
+            }
+            messageCache.invalidate(userById)
         }
     }
 
     private fun onVerificationChannelMessageReceived(event: GuildMessageReceivedEvent) {
         if (!event.author.isBot) return
+        if (event.channel.id != authorizationConfig.authorizationInspectionChannelID) return
 
         val message = event.message
 
@@ -186,10 +174,10 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
         message.addReaction(approved).and(message.addReaction(denied)).queue()
     }
 
-    private fun onGuildMemberRemove(event: GuildMemberRemoveEvent) {
+    private suspend fun onGuildMemberRemove(event: GuildMemberRemoveEvent) {
         val user = event.user
         val emote = event.guild.retrieveEmoteById(authorizationConfig.emoteID).complete()
-        val channel = event.guild.getTextChannelById(authorizationConfig.channelID).let {
+        val channel = event.guild.getTextChannelById(authorizationConfig.authorizationChannelID).let {
             if (it != null) return@let it
             else {
                 logger.error("Channel does not exist, or ChannelID is invalid")
@@ -197,16 +185,14 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
             }
         }
 
-        channel.retrieveMessageById(authorizationConfig.messageID).submit().thenAccept {
-            it.removeReaction(emote, user).queue()
-        }
+        channel.retrieveMessageById(authorizationConfig.messageID).await().removeReaction(emote, user)
     }
 
     override fun register(jda: JDA) {
-        jda.listenFlow<GuildMessageReactionAddEvent>().handleEachIn(scope, this::onGuildEmoteReact)
         jda.listenFlow<MessageReceivedEvent>().handleEachIn(scope, this::onPrivateMessageReceived)
         jda.listenFlow<GuildMemberRemoveEvent>().handleEachIn(scope, this::onGuildMemberRemove)
         jda.listenFlow<GuildMessageReceivedEvent>().handleEachIn(scope, this::onVerificationChannelMessageReceived)
+        jda.listenFlow<GuildMessageReactionAddEvent>().handleEachIn(scope, this::onGuildEmoteReact)
         jda.listenFlow<GuildMessageReactionAddEvent>().handleEachIn(scope, this::onGuildVerifyEmoteReact)
     }
 }
