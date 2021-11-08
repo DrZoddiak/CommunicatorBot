@@ -22,9 +22,17 @@ class Communicator @Inject constructor() {
 
     fun load() {
         val injector = Guice.createInjector(CommunicatorModule(configManager), ListenersModule())
+
+        val loadTime = measureTimeMillis {
+            runBlocking {
+                SqlDatabase(configManager).loadDatabase()
+            }
+        }
+
         val jda = injector.getInstance<JDA>()
         val commandManager = CommandManager(jda, configManager.config.mainConfiguration.prefix)
         commandManager.registerMessage("cmd.no.exists") {} //Don't send message if command isn't found
+        commandManager.registerRequirement("#owner") { it.isOwner }
 
         val commands = listOf(
             PingCommand(),
@@ -32,11 +40,6 @@ class Communicator @Inject constructor() {
 
         commandManager.register(commands)
 
-        val loadTime = measureTimeMillis {
-            runBlocking {
-                SqlDatabase(configManager).loadDatabase()
-            }
-        }
         logger.info("Loading database took $loadTime ms")
 
         jda.awaitReady()

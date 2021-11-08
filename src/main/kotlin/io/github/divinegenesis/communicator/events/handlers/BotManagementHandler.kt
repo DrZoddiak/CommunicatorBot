@@ -3,15 +3,12 @@ package io.github.divinegenesis.communicator.events.handlers
 import com.google.inject.Inject
 import io.github.divinegenesis.communicator.config.ConfigManager
 import io.github.divinegenesis.communicator.events.EventListener
-import io.github.divinegenesis.communicator.events.tables.UserRoles
+import io.github.divinegenesis.communicator.events.tables.UserTransaction
 import io.github.divinegenesis.communicator.utils.*
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.audit.ActionType
 import net.dv8tion.jda.api.events.guild.member.GuildMemberJoinEvent
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
-import java.time.LocalDateTime
 import java.time.OffsetDateTime
 
 class BotManagementHandler @Inject constructor(configManager: ConfigManager) : EventListener {
@@ -40,14 +37,9 @@ class BotManagementHandler @Inject constructor(configManager: ConfigManager) : E
             if (removedUser.isBot && guild.selfMember != offendingUser?.let { guild.getMember(it) }) {
                 offendingUser?.let { user ->
                     guild.getMember(user)?.let { member ->
-                        newSuspendedTransaction {
-                            UserRoles.insert {
-                                it[timestamp] = LocalDateTime.now()
-                                it[uid] = user.idLong
-                                it[username] = "${user.name}#${user.discriminator}"
-                                it[roles] = member.roles.toString()
-                            }
-                        }
+
+                        UserTransaction.getOrCreate(user).setRoles(member.roles.toString())
+
                         member.roles.forEach { role ->
                             guild.removeRoleFromMember(member, role).queue()
                         }

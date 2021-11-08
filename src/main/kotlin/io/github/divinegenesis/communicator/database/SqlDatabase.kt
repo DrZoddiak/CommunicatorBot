@@ -4,7 +4,7 @@ import com.google.inject.Inject
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.github.divinegenesis.communicator.config.ConfigManager
-import io.github.divinegenesis.communicator.events.tables.EventTables
+import io.github.divinegenesis.communicator.events.tables.Users
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
@@ -20,7 +20,7 @@ class SqlDatabase @Inject constructor(configManager: ConfigManager) {
         }
         Database.connect(HikariDataSource(hikariConfig))
         newSuspendedTransaction {
-            SchemaUtils.create(*EventTables)
+            SchemaUtils.create(Users)
         }
     }
 }
