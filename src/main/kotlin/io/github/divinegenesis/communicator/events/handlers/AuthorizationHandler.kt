@@ -29,9 +29,6 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
     private val authorizationConfig = config.authorizationConfig
     private val logger = logger<AuthorizationHandler>()
 
-    private val processingCache = Caffeine.newBuilder()
-        .build<Long, Boolean>()
-
     private val messageCache = Caffeine.newBuilder()
         .expireAfterWrite(Duration.ofHours(6))
         .build<String, CacheHolder>()
@@ -220,9 +217,6 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
             )
             return
         }
-
-        processingCache.put(user.idLong, true)
-
         processUser(user, message, guild)
     }
 
