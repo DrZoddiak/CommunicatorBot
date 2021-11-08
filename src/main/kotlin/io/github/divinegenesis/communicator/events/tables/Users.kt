@@ -13,8 +13,9 @@ object Users : IdTable<Long>() {
     val reacted = bool("reacted").default(false)
     val processed = bool("processed").default(false)
     val processing = bool("processing").default(false)
-    val roles = text("roles").default("")
+    val roles = text("roles").nullable()
     val leaves = integer("times left").default(0)
+    val suspended = bool("suspended").default(false)
     override val primaryKey = PrimaryKey(id)
 }
 
@@ -33,6 +34,8 @@ class UserStore(id: EntityID<Long>) : LongEntity(id) {
         private set
     var processing by Users.processing
         private set
+    var suspended by Users.suspended
+        private set
 
     suspend fun setProcessed(value: Boolean) = newSuspendedTransaction {
         processed = value
@@ -48,6 +51,10 @@ class UserStore(id: EntityID<Long>) : LongEntity(id) {
 
     suspend fun setProcessing(value: Boolean) = newSuspendedTransaction {
         processing = value
+    }
+
+    suspend fun setSuspended(value: Boolean) = newSuspendedTransaction {
+        suspended = value
     }
 
     suspend fun addLeaves() = newSuspendedTransaction {

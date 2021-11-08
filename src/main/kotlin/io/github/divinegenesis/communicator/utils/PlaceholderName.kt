@@ -24,6 +24,7 @@ suspend fun parseReactions(channel: TextChannel?, content: String, authorization
 
         if (user.wasProcessed()) return@forEach
         if (user.isProcessing()) return@forEach
+        if (user.isSuspended()) return@forEach
 
         user.sendPrivateMessage(
             channel, content

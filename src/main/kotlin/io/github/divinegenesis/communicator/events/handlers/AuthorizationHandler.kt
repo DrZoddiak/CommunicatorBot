@@ -15,6 +15,7 @@ import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent
 import net.dv8tion.jda.api.events.message.guild.GuildMessageReceivedEvent
 import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionAddEvent
+import net.dv8tion.jda.api.events.message.guild.react.GuildMessageReactionRemoveEvent
 import net.dv8tion.jda.api.events.message.priv.react.PrivateMessageReactionAddEvent
 import java.time.Duration
 import java.time.Instant
@@ -35,8 +36,22 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
         .expireAfterWrite(Duration.ofHours(6))
         .build<String, CacheHolder>()
 
-    //Todo: If reaction is removed, user will need to re-apply
-    //Remove ticket after 1 minute if mark isn't re-applied
+    private suspend fun onGuildEmoteRemove(event: GuildMessageReactionRemoveEvent) {
+        if (event.channel != event.guild.getTextChannelById(authorizationConfig.authorizationChannelID)) return
+
+        event.user?.let {
+            if (it.isBot) return
+            val transaction = UserTransaction.getOrCreate(it)
+            transaction.setReacted(false)
+            transaction.setProcessing(false)
+
+            it.sendPrivateMessage(
+                null, """
+                You have removed your reaction, in order to be authorized, you need to re-apply your reaction.
+            """.trimIndent()
+            )
+        }
+    }
 
     private suspend fun onGuildEmoteReact(event: GuildMessageReactionAddEvent) {
         if (event.user.isBot) return
@@ -56,6 +71,15 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
 
         UserTransaction.getOrCreate(user).setReacted(true)
         if (user.wasProcessed()) return
+        if (user.isSuspended()) {
+            user.sendPrivateMessage(
+                channel, """
+                    You are currently in a wait queue for the authorization process, I will message you when your timer
+                    has reset!
+                """.trimIndent()
+            )
+            return
+        }
 
         user.sendPrivateMessage(
             channel, authorizationConfig.questions.initialStatement
@@ -72,7 +96,6 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
             user.sendPrivateMessage(
                 null, authorizationConfig.questions.initialStatement
             )
-
     }
 
     private suspend fun onGuildVerifyEmoteReact(event: GuildMessageReactionAddEvent) {
@@ -93,14 +116,12 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
                 return
             }
             it.fields.forEach { field ->
-                //Todo: Hardcoded BAD
-                if (field.name?.startsWith("Answer 3") == true) {
+                if (field.name?.startsWith("Password") == true) {
                     userPasswordAttempt = field.value.toString()
                 }
             }
         }
 
-        //There should only be one Member in the list ever
         val regularRole = guild.getRoleById(authorizationConfig.regularRoleID).let {
             if (it == null) {
                 logger.error("Regular Role ID is invalid!")
@@ -122,8 +143,6 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
 
         if (verdict == authorizationConfig.approveEmote) {
 
-            //todo: Check if reacted exists
-            //Edit message to reflect if user removed reaction
             if (user?.reacted() == false) {
                 message.editMessage("User removed reaction from the message")
                 Timer().schedule(
@@ -132,18 +151,30 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
                     message.delete()
                     user.sendPrivateMessage(
                         null, """
-                            You have
+                            Your application has been terminated, please re-apply.
                         """.trimIndent()
                     )
                 }
+                return
             }
 
             member?.let { guild.addRoleToMember(it, regularRole).queue() }
+            user?.sendPrivateMessage(
+                null,
+                """
+                    **Please note that a penalty will be administered tied to your Discord account if you leave Universium.**
+                    ||*This means that if you leave and then come back someday, we won't be this cool to you!*||
+                    *We hope that you will enjoy yourself and be able to find the friends you're looking for!!*
+                    *You've been authorized as a Mysterian.*
+
+                """.trimIndent()
+            )
+
             if (userPasswordAttempt.equals(authorizationConfig.password, true)) {
                 member?.let { guild.addRoleToMember(it, specialRole).queue() }
                 user?.sendPrivateMessage(
                     null, """
-                        **Please note that a penalty will be administired tied to your Discord account if you leave Universium.**
+                        **Please note that a penalty will be administered tied to your Discord account if you leave Universium.**
                         ||*This means that if you leave and then come back someday, we won't be this cool to you!*||
                         *We hope that you will enjoy yourself and be able to find the friends you're looking for!!*
                         *You've been authorized as a Mysterian.*
@@ -151,18 +182,22 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
                 )
             }
         } else {
-            user?.sendPrivateMessage(
-                null, """
+            user?.let {
+                UserTransaction.getOrCreate(it).setSuspended(true)
+                user.sendPrivateMessage(
+                    null, """
                     Unfortunately your authorization request has been denied. You may try again in 10 minutes. Please take the time to think about your answers while you wait, for your next attempt.
                 """.trimIndent()
-            )
-            Timer().schedule(
-                delay = 600000L
-            ) {
-                user?.sendPrivateMessage(
-                    null, authorizationConfig.questions.initialStatement
                 )
+                Timer().schedule(
+                    delay = 600000L
+                ) {
+                    user.sendPrivateMessage(
+                        null, authorizationConfig.questions.initialStatement
+                    )
+                }
             }
+
         }
     }
 
@@ -227,6 +262,7 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
         val authChannel = guild?.getTextChannelById(authorizationConfig.authorizationChannelID)
 
         if (user.isProcessing()) return
+        if (user.isSuspended()) return
 
         val cache = messageCache.getIfPresent(userById).let {
             if (it != null) {
@@ -266,8 +302,9 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
 
             for ((i, answer) in messageList.withIndex()) {
                 if (i == 0) continue
-                if (i == messageList.size) {
+                if (i == messageList.size - 1) {
                     embed.addField(MessageEmbed.Field("Password", answer, false))
+                    break
                 }
                 embed.addField(MessageEmbed.Field("Answer $i", answer, false))
             }
@@ -288,6 +325,7 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
 
     override fun register(jda: JDA) {
         jda.listenFlow<ReadyEvent>().handleEachIn(scope, this::onBotReady)
+        jda.listenFlow<GuildMessageReactionRemoveEvent>().handleEachIn(scope, this::onGuildEmoteRemove)
         jda.listenFlow<MessageReceivedEvent>().handleEachIn(scope, this::onPrivateMessageReceived)
         jda.listenFlow<GuildMemberRemoveEvent>().handleEachIn(scope, this::onGuildMemberRemove)
         jda.listenFlow<GuildMessageReceivedEvent>().handleEachIn(scope, this::onVerificationChannelMessageReceived)

@@ -46,6 +46,10 @@ suspend fun User.reacted(): Boolean {
     return UserTransaction.getOrCreate(this).reacted
 }
 
-suspend fun User.removedRoles(): String {
+suspend fun User.isSuspended(): Boolean {
+    return UserTransaction.getOrCreate(this).suspended
+}
+
+suspend fun User.removedRoles(): String? {
     return UserTransaction.getOrCreate(this).roles
 }
