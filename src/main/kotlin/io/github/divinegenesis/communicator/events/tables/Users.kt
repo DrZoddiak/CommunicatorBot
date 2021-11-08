@@ -16,6 +16,7 @@ object Users : IdTable<Long>() {
     val roles = text("roles").nullable()
     val leaves = integer("times left").default(0)
     val suspended = bool("suspended").default(false)
+
     override val primaryKey = PrimaryKey(id)
 }
 

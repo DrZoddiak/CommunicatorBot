@@ -43,9 +43,11 @@ class BotManagementHandler @Inject constructor(configManager: ConfigManager) : E
                         member.roles.forEach { role ->
                             guild.removeRoleFromMember(member, role).queue()
                         }
+
                         guild.getRoleById(mainConfig.punishmentRoleID)?.let { role ->
                             guild.addRoleToMember(member, role).queue()
                         }
+
                         guild.retrieveOwner().await().user.sendPrivateMessage(
                             null, """
                                 ${member.effectiveName} has removed a bot from ${guild.name}!
@@ -57,6 +59,12 @@ class BotManagementHandler @Inject constructor(configManager: ConfigManager) : E
             } else {
                 offendingUser?.let { bot ->
                     guild.ban(bot, 0).queue()
+
+                    guild.retrieveOwner().await().user.sendPrivateMessage(
+                        null, """
+                                ${bot.name} has removed a bot from ${guild.name}!
+                                """.trimIndent()
+                    )
                 }
             }
         }

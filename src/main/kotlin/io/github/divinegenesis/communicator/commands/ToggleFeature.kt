@@ -14,7 +14,7 @@ class ToggleFeature @Inject constructor(private val configManager: ConfigManager
     @Requirement("owner")
     @Default
     fun defaultCommand() {
-        configManager.config.features.removeReaction = true
+        configManager.config.features.firstRun = false
         configManager.loadConfig()
     }
 }

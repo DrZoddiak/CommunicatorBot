@@ -206,6 +206,8 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
         val message = event.message.contentRaw
         val user = event.author
 
+        if (!user.reacted()) return
+
         if (user.wasProcessed()) return
 
         if (user.isProcessing()) return
@@ -217,6 +219,7 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
             )
             return
         }
+
         processUser(user, message, guild)
     }
 
@@ -243,6 +246,17 @@ class AuthorizationHandler @Inject constructor(configManager: ConfigManager) : E
     }
 
     private suspend fun onBotReady(event: ReadyEvent) {
+
+        if (!config.features.firstRun) return
+
+        event.jda.users.forEach {
+            if (it.isBot) return@forEach
+
+            if (it.isSuspended()) {
+                UserTransaction.getOrCreate(it).setSuspended(false)
+            }
+        }
+
         parseReactions(
             event.jda.getTextChannelById(authorizationConfig.authorizationChannelID),
             authorizationConfig.questions.initialStatement,

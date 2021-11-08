@@ -29,6 +29,8 @@ class JoinLeaveHandler @Inject constructor(configManager: ConfigManager) : Event
         guild.getRoleById(config.authorizationConfig.rejoinRoleID)?.let {
             guild.addRoleToMember(event.member, it).queue()
         }
+
+        //global timer, 100 days
     }
 
     private suspend fun onGuildLeave(event: GuildMemberRemoveEvent) {
